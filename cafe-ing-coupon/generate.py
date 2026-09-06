@@ -27,8 +27,9 @@ DPI = 300
 
 NAVY = (26, 74, 156)
 NAVY_HEX = "#1A4A9C"
-RED = (192, 23, 42)
-RED_HEX = "#C0172A"
+RED = (195, 15, 35)
+RED_HEX = "#C30F23"
+BRAND_KO = "카페아이엔지 CAFE ING"
 INK = (28, 28, 28)
 HEADER_BG = (236, 236, 236)
 FOOTER_BG = (243, 243, 243)
@@ -57,7 +58,21 @@ def register_pdf_fonts(paths: dict[str, Path]) -> None:
     pdfmetrics.registerFont(TTFont("SquareBold", str(paths["square_bold"])))
 
 
-def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader) -> None:
+def draw_logo_pdf(c: canvas.Canvas, logo: ImageReader, x: float, y: float, w: float, header_h: float) -> None:
+    logo_h = header_h * 0.68
+    logo_w = logo_h * (640 / 169)
+    c.drawImage(
+        logo,
+        x + (w - logo_w) / 2,
+        y + (header_h - logo_h) / 2,
+        width=logo_w,
+        height=logo_h,
+        mask="auto",
+        preserveAspectRatio=True,
+    )
+
+
+def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, logo: ImageReader) -> None:
     """Draw one coupon. (x, y) is the lower-left corner in PDF points."""
     w = COUPON_W_MM * mm
     h = COUPON_H_MM * mm
@@ -78,10 +93,7 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader) ->
     c.setStrokeColorRGB(*rgb(LINE))
     c.setLineWidth(0.35)
     c.line(x, y + h - header_h, x + w, y + h - header_h)
-
-    c.setFillColorRGB(*rgb(INK))
-    c.setFont("SquareBold", 11)
-    c.drawCentredString(x + w / 2, y + h - header_h + 2.35 * mm, "CAFE ING")
+    draw_logo_pdf(c, logo, x, y + h - header_h, w, header_h)
 
     # footer
     c.setFillColorRGB(*rgb(FOOTER_BG))
@@ -92,24 +104,35 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader) ->
 
     c.setFillColorRGB(*rgb(RED))
     c.setFont("GothicBold", 7.1)
-    c.drawCentredString(x + w / 2, y + footer_h - 4.15 * mm, "카페아이앤지 CAFE ING")
+    c.drawCentredString(x + w / 2, y + footer_h - 4.15 * mm, BRAND_KO)
 
     c.setFillColorRGB(*rgb(INK))
     c.setFont("Gothic", 6.15)
     c.drawCentredString(x + w / 2, y + 3.15 * mm, "경삼관, 장준하통일관점 사용가능")
 
-    # middle: title + price + drink
+    # middle: title + price vertically centered with the drink
     body_top = y + h - header_h
     body_bot = y + footer_h
     body_h = body_top - body_bot
     body_mid_x = x + w * 0.38
 
+    title_size = 13.2
+    price_size = 8.4
+    gap = 1.15 * mm
+    title_ascent = pdfmetrics.getAscent("GothicBold") * title_size / 1000
+    title_descent = abs(pdfmetrics.getDescent("GothicBold")) * title_size / 1000
+    price_ascent = pdfmetrics.getAscent("GothicBold") * price_size / 1000
+    price_descent = abs(pdfmetrics.getDescent("GothicBold")) * price_size / 1000
+    block_h = title_ascent + title_descent + gap + price_ascent + price_descent
+    block_top = body_bot + (body_h + block_h) / 2
+    title_baseline = block_top - title_ascent
+    price_baseline = title_baseline - title_descent - gap - price_ascent
+
     c.setFillColorRGB(*rgb(NAVY))
-    c.setFont("GothicBold", 13.2)
-    title_y = body_bot + body_h / 2 + 1.55 * mm
-    c.drawCentredString(body_mid_x, title_y, "음료교환권")
-    c.setFont("GothicBold", 8.4)
-    c.drawCentredString(body_mid_x, title_y - 4.35 * mm, "(2,000원)")
+    c.setFont("GothicBold", title_size)
+    c.drawCentredString(body_mid_x, title_baseline, "음료교환권")
+    c.setFont("GothicBold", price_size)
+    c.drawCentredString(body_mid_x, price_baseline, "(2,000원)")
 
     drink_h = 20.2 * mm
     drink_w = drink_h * (697 / 848)
@@ -128,9 +151,10 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader) ->
     c.restoreState()
 
 
-def build_pdf(drink_path: Path, pdf_path: Path, paths: dict[str, Path]) -> None:
+def build_pdf(drink_path: Path, logo_path: Path, pdf_path: Path, paths: dict[str, Path]) -> None:
     register_pdf_fonts(paths)
     drink = ImageReader(str(drink_path))
+    logo = ImageReader(str(logo_path))
 
     grid_w = COLS * COUPON_W_MM
     grid_h = ROWS * COUPON_H_MM
@@ -146,7 +170,7 @@ def build_pdf(drink_path: Path, pdf_path: Path, paths: dict[str, Path]) -> None:
             x = (left + col * COUPON_W_MM) * mm
             # PDF y grows upward; row 0 is the top row
             y = (bottom + (ROWS - 1 - row) * COUPON_H_MM) * mm
-            draw_coupon_pdf(c, x, y, drink)
+            draw_coupon_pdf(c, x, y, drink, logo)
 
     c.save()
 
@@ -155,7 +179,9 @@ def pil_font(path: Path, size_pt: float, dpi: int = DPI) -> ImageFont.FreeTypeFo
     return ImageFont.truetype(str(path), int(round(size_pt / 72 * dpi)))
 
 
-def render_coupon_png(drink_im: Image.Image, paths: dict[str, Path], dpi: int = DPI) -> Image.Image:
+def render_coupon_png(
+    drink_im: Image.Image, logo_im: Image.Image, paths: dict[str, Path], dpi: int = DPI
+) -> Image.Image:
     w = mm_to_px(COUPON_W_MM, dpi)
     h = mm_to_px(COUPON_H_MM, dpi)
     header_h = mm_to_px(HEADER_H_MM, dpi)
@@ -170,7 +196,6 @@ def render_coupon_png(drink_im: Image.Image, paths: dict[str, Path], dpi: int = 
     d.line((0, h - footer_h, w, h - footer_h), fill=LINE, width=max(1, mm_to_px(0.12, dpi)))
     d.rectangle((0, 0, w - 1, h - 1), outline=BORDER, width=max(2, mm_to_px(0.16, dpi)))
 
-    square = pil_font(paths["square_bold"], 11, dpi)
     gothic_b = pil_font(paths["gothic_bold"], 13.2, dpi)
     gothic_price = pil_font(paths["gothic_bold"], 8.4, dpi)
     gothic_red = pil_font(paths["gothic_bold"], 7.1, dpi)
@@ -181,7 +206,12 @@ def render_coupon_png(drink_im: Image.Image, paths: dict[str, Path], dpi: int = 
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
         d.text(((w - tw) / 2 - bbox[0], cy - th / 2 - bbox[1]), text, font=font, fill=fill)
 
-    center_text("CAFE ING", square, header_h / 2, INK)
+    logo_h = int(header_h * 0.68)
+    logo_w = int(logo_h * (logo_im.width / logo_im.height))
+    logo_fitted = logo_im.resize((logo_w, logo_h), Image.Resampling.LANCZOS)
+    logo_x = (w - logo_w) // 2
+    logo_y = (header_h - logo_h) // 2
+    img.paste(logo_fitted, (logo_x, logo_y), logo_fitted)
 
     body_top = header_h
     body_bot = h - footer_h
@@ -192,10 +222,8 @@ def render_coupon_png(drink_im: Image.Image, paths: dict[str, Path], dpi: int = 
     price = "(2,000원)"
     title_bbox = d.textbbox((0, 0), title, font=gothic_b)
     price_bbox = d.textbbox((0, 0), price, font=gothic_price)
-    title_h = title_bbox[3] - title_bbox[1]
-    price_h = price_bbox[3] - price_bbox[1]
-    gap = mm_to_px(1.1, dpi)
-    block_h = title_h + gap + price_h
+    gap = mm_to_px(1.15, dpi)
+    block_h = (title_bbox[3] - title_bbox[1]) + gap + (price_bbox[3] - price_bbox[1])
     block_top = body_top + (body_h - block_h) / 2
     d.text(
         (left_cx - (title_bbox[2] - title_bbox[0]) / 2 - title_bbox[0], block_top - title_bbox[1]),
@@ -206,7 +234,7 @@ def render_coupon_png(drink_im: Image.Image, paths: dict[str, Path], dpi: int = 
     d.text(
         (
             left_cx - (price_bbox[2] - price_bbox[0]) / 2 - price_bbox[0],
-            block_top + title_h + gap - price_bbox[1],
+            block_top + (title_bbox[3] - title_bbox[1]) + gap - price_bbox[1],
         ),
         price,
         font=gothic_price,
@@ -220,7 +248,7 @@ def render_coupon_png(drink_im: Image.Image, paths: dict[str, Path], dpi: int = 
     dy = body_top + (body_h - drink_h) // 2
     img.paste(drink, (dx, dy))
 
-    center_text("카페아이앤지 CAFE ING", gothic_red, h - footer_h + footer_h * 0.36, RED)
+    center_text(BRAND_KO, gothic_red, h - footer_h + footer_h * 0.36, RED)
     center_text("경삼관, 장준하통일관점 사용가능", gothic, h - footer_h + footer_h * 0.70, INK)
     return img
 
@@ -313,21 +341,26 @@ def write_html(html_path: Path) -> None:
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: "NanumSquare", "NanumGothic", sans-serif;
-      font-weight: 700;
-      font-size: 11pt;
-      letter-spacing: 0.04em;
-      color: #1c1c1c;
+    }}
+    .header .logo {{
+      height: 5.2mm;
+      width: auto;
+      display: block;
     }}
     .body {{
       flex: 1;
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      display: flex;
       align-items: center;
       min-height: 0;
       padding: 0 1.6mm 0 1.2mm;
     }}
     .copy {{
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
       text-align: center;
       color: {NAVY_HEX};
       font-family: "NanumGothic", sans-serif;
@@ -345,10 +378,10 @@ def write_html(html_path: Path) -> None:
     .drink {{
       height: 20.2mm;
       width: auto;
-      max-width: 100%;
+      max-width: 42%;
       object-fit: contain;
       display: block;
-      margin: 0 auto;
+      flex-shrink: 0;
     }}
     .footer {{
       height: {FOOTER_H_MM}mm;
@@ -405,7 +438,7 @@ def write_html(html_path: Path) -> None:
 def coupon_html() -> str:
     return """
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -414,7 +447,7 @@ def coupon_html() -> str:
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
@@ -425,12 +458,14 @@ def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     paths = load_fonts()
     drink_path = ASSETS / "iced-americano.png"
+    logo_path = ASSETS / "cafe-ing-logo.png"
     drink_im = Image.open(drink_path).convert("RGB")
+    logo_im = Image.open(logo_path).convert("RGBA")
 
     pdf_path = OUTPUT / "CAFE_ING_음료교환권_2000원_A4_15매.pdf"
-    build_pdf(drink_path, pdf_path, paths)
+    build_pdf(drink_path, logo_path, pdf_path, paths)
 
-    coupon = render_coupon_png(drink_im, paths)
+    coupon = render_coupon_png(drink_im, logo_im, paths)
     coupon.save(OUTPUT / "coupon-single.png")
     page = render_a4_png(coupon)
     page.save(OUTPUT / "A4-15매-preview.png")

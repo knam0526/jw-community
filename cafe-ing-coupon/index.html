@@ -35,7 +35,7 @@
     .toolbar button {
       font-family: inherit;
       font-weight: 700;
-      background: #C0172A;
+      background: #C30F23;
       color: #fff;
       border: 0;
       padding: 8px 14px;
@@ -72,21 +72,26 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: "NanumSquare", "NanumGothic", sans-serif;
-      font-weight: 700;
-      font-size: 11pt;
-      letter-spacing: 0.04em;
-      color: #1c1c1c;
+    }
+    .header .logo {
+      height: 5.2mm;
+      width: auto;
+      display: block;
     }
     .body {
       flex: 1;
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      display: flex;
       align-items: center;
       min-height: 0;
       padding: 0 1.6mm 0 1.2mm;
     }
     .copy {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
       text-align: center;
       color: #1A4A9C;
       font-family: "NanumGothic", sans-serif;
@@ -104,10 +109,10 @@
     .drink {
       height: 20.2mm;
       width: auto;
-      max-width: 100%;
+      max-width: 42%;
       object-fit: contain;
       display: block;
-      margin: 0 auto;
+      flex-shrink: 0;
     }
     .footer {
       height: 10.4mm;
@@ -123,7 +128,7 @@
       padding: 0 1.5mm;
     }
     .footer .brand {
-      color: #C0172A;
+      color: #C30F23;
       font-weight: 700;
       font-size: 7.1pt;
     }
@@ -153,7 +158,7 @@
     <div class="grid">
       
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -162,13 +167,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -177,13 +182,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -192,13 +197,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -207,13 +212,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -222,13 +227,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -237,13 +242,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -252,13 +257,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -267,13 +272,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -282,13 +287,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -297,13 +302,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -312,13 +317,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -327,13 +332,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -342,13 +347,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -357,13 +362,13 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     
       <article class="coupon">
-        <header class="header">CAFE ING</header>
+        <header class="header"><img class="logo" src="assets/cafe-ing-logo.png" alt="cafe ing" /></header>
         <div class="body">
           <div class="copy">
             <h2>음료교환권</h2>
@@ -372,7 +377,7 @@
           <img class="drink" src="assets/iced-americano.png" alt="아이스 아메리카노" />
         </div>
         <footer class="footer">
-          <div class="brand">카페아이앤지 CAFE ING</div>
+          <div class="brand">카페아이엔지 CAFE ING</div>
           <div class="place">경삼관, 장준하통일관점 사용가능</div>
         </footer>
       </article>
