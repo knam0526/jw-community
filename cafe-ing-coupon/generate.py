@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CAFE ING 음료교환권 — 60×45mm × 15매 A4 인쇄물 생성."""
+"""CAFE ING 음료교환권 — A4를 거의 채운 15매 인쇄물 생성."""
 
 from __future__ import annotations
 
@@ -17,12 +17,14 @@ ASSETS = ROOT / "assets"
 FONTS = ROOT / "fonts"
 OUTPUT = ROOT / "output"
 
-COUPON_W_MM = 60
-COUPON_H_MM = 45
 COLS = 3
 ROWS = 5
 A4_W_MM = 210
 A4_H_MM = 297
+PAGE_MARGIN_MM = 4.0
+COUPON_W_MM = (A4_W_MM - 2 * PAGE_MARGIN_MM) / COLS
+COUPON_H_MM = (A4_H_MM - 2 * PAGE_MARGIN_MM) / ROWS
+SCALE = COUPON_H_MM / 45.0
 DPI = 300
 
 NAVY = (26, 74, 156)
@@ -36,8 +38,15 @@ FOOTER_BG = (243, 243, 243)
 LINE = (50, 50, 50)
 BORDER = (30, 30, 30)
 
-HEADER_H_MM = 7.6
-FOOTER_H_MM = 10.4
+HEADER_H_MM = 7.6 * SCALE
+FOOTER_H_MM = 10.4 * SCALE
+TITLE_PT = 13.6 * SCALE
+PRICE_PT = 8.6 * SCALE
+BRAND_PT = 7.35 * SCALE
+PLACE_PT = 6.25 * SCALE
+DRINK_H_MM = 20.2 * SCALE
+LOGO_H_MM = 5.2 * SCALE
+PLACE_LINE = "경삼관점, 장준하통일관점 사용가능"
 
 
 def mm_to_px(mm_val: float, dpi: int = DPI) -> int:
@@ -101,12 +110,12 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
     c.line(x, y + footer_h, x + w, y + footer_h)
 
     c.setFillColorRGB(*rgb(RED))
-    c.setFont("Display", 7.35)
-    c.drawCentredString(x + w / 2, y + footer_h - 4.15 * mm, BRAND_KO)
+    c.setFont("Display", BRAND_PT)
+    c.drawCentredString(x + w / 2, y + footer_h * 0.58, BRAND_KO)
 
     c.setFillColorRGB(*rgb(INK))
-    c.setFont("Body", 6.25)
-    c.drawCentredString(x + w / 2, y + 3.15 * mm, "경삼관점, 장준하통일관점 사용가능")
+    c.setFont("Body", PLACE_PT)
+    c.drawCentredString(x + w / 2, y + footer_h * 0.28, PLACE_LINE)
 
     # middle: title + price vertically centered with the drink
     body_top = y + h - header_h
@@ -114,9 +123,9 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
     body_h = body_top - body_bot
     body_mid_x = x + w * 0.38
 
-    title_size = 13.6
-    price_size = 8.6
-    gap = 1.2 * mm
+    title_size = TITLE_PT
+    price_size = PRICE_PT
+    gap = 1.2 * mm * SCALE
     title_ascent = pdfmetrics.getAscent("Display") * title_size / 1000
     title_descent = abs(pdfmetrics.getDescent("Display")) * title_size / 1000
     price_ascent = pdfmetrics.getAscent("Display") * price_size / 1000
@@ -132,9 +141,9 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
     c.setFont("Display", price_size)
     c.drawCentredString(body_mid_x, price_baseline, "(2,000원)")
 
-    drink_h = 20.2 * mm
+    drink_h = DRINK_H_MM * mm
     drink_w = drink_h * (697 / 848)
-    drink_x = x + w - drink_w - 2.2 * mm
+    drink_x = x + w - drink_w - 2.2 * mm * SCALE
     drink_y = body_bot + (body_h - drink_h) / 2
     c.drawImage(
         drink,
@@ -194,10 +203,10 @@ def render_coupon_png(
     d.line((0, h - footer_h, w, h - footer_h), fill=LINE, width=max(1, mm_to_px(0.12, dpi)))
     d.rectangle((0, 0, w - 1, h - 1), outline=BORDER, width=max(2, mm_to_px(0.16, dpi)))
 
-    display_title = pil_font(paths["display"], 13.6, dpi)
-    display_price = pil_font(paths["display"], 8.6, dpi)
-    display_brand = pil_font(paths["display"], 7.35, dpi)
-    body_place = pil_font(paths["body"], 6.25, dpi)
+    display_title = pil_font(paths["display"], TITLE_PT, dpi)
+    display_price = pil_font(paths["display"], PRICE_PT, dpi)
+    display_brand = pil_font(paths["display"], BRAND_PT, dpi)
+    body_place = pil_font(paths["body"], PLACE_PT, dpi)
 
     def center_text(text: str, font: ImageFont.FreeTypeFont, cy: float, fill) -> None:
         bbox = d.textbbox((0, 0), text, font=font)
@@ -220,7 +229,7 @@ def render_coupon_png(
     price = "(2,000원)"
     title_bbox = d.textbbox((0, 0), title, font=display_title)
     price_bbox = d.textbbox((0, 0), price, font=display_price)
-    gap = mm_to_px(1.2, dpi)
+    gap = mm_to_px(1.2 * SCALE, dpi)
     block_h = (title_bbox[3] - title_bbox[1]) + gap + (price_bbox[3] - price_bbox[1])
     block_top = body_top + (body_h - block_h) / 2
     d.text(
@@ -239,15 +248,15 @@ def render_coupon_png(
         fill=NAVY,
     )
 
-    drink_h = mm_to_px(20.2, dpi)
+    drink_h = mm_to_px(DRINK_H_MM, dpi)
     drink_w = int(drink_h * (drink_im.width / drink_im.height))
     drink = drink_im.resize((drink_w, drink_h), Image.Resampling.LANCZOS)
-    dx = w - drink_w - mm_to_px(2.2, dpi)
+    dx = w - drink_w - mm_to_px(2.2 * SCALE, dpi)
     dy = body_top + (body_h - drink_h) // 2
     img.paste(drink, (dx, dy))
 
     center_text(BRAND_KO, display_brand, h - footer_h + footer_h * 0.36, RED)
-    center_text("경삼관점, 장준하통일관점 사용가능", body_place, h - footer_h + footer_h * 0.70, INK)
+    center_text(PLACE_LINE, body_place, h - footer_h + footer_h * 0.70, INK)
     return img
 
 
@@ -336,7 +345,7 @@ def write_html(html_path: Path) -> None:
       justify-content: center;
     }}
     .header .logo {{
-      height: 5.2mm;
+      height: {LOGO_H_MM}mm;
       width: auto;
       display: block;
     }}
@@ -360,16 +369,16 @@ def write_html(html_path: Path) -> None:
       font-weight: 700;
     }}
     .copy h2 {{
-      font-size: 13.6pt;
+      font-size: {TITLE_PT}pt;
       line-height: 1.15;
       font-weight: 700;
     }}
     .copy p {{
-      font-size: 8.6pt;
-      margin-top: 0.8mm;
+      font-size: {PRICE_PT}pt;
+      margin-top: {0.8 * SCALE}mm;
     }}
     .drink {{
-      height: 20.2mm;
+      height: {DRINK_H_MM}mm;
       width: auto;
       max-width: 42%;
       object-fit: contain;
@@ -393,12 +402,12 @@ def write_html(html_path: Path) -> None:
       color: {RED_HEX};
       font-family: "Cafe24Ssurround", sans-serif;
       font-weight: 700;
-      font-size: 7.35pt;
+      font-size: {BRAND_PT}pt;
     }}
     .footer .place {{
       color: #1c1c1c;
       font-family: "Pretendard", sans-serif;
-      font-size: 6.25pt;
+      font-size: {PLACE_PT}pt;
     }}
     @media print {{
       @page {{ size: A4; margin: 0; }}
@@ -415,7 +424,7 @@ def write_html(html_path: Path) -> None:
 </head>
 <body>
   <div class="toolbar">
-    <div>CAFE ING 음료교환권 (2,000원) · 1매 60×45mm · A4 15매</div>
+    <div>CAFE ING 음료교환권 (2,000원) · 1매 {COUPON_W_MM:.1f}×{COUPON_H_MM:.1f}mm · A4 15매</div>
     <button type="button" onclick="window.print()">인쇄 / PDF 저장</button>
   </div>
   <div class="sheet">
