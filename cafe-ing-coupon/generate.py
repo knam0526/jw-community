@@ -106,7 +106,7 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
 
     c.setFillColorRGB(*rgb(INK))
     c.setFont("Body", 6.25)
-    c.drawCentredString(x + w / 2, y + 3.15 * mm, "경삼관, 장준하통일관점 사용가능")
+    c.drawCentredString(x + w / 2, y + 3.15 * mm, "경삼관점, 장준하통일관점 사용가능")
 
     # middle: title + price vertically centered with the drink
     body_top = y + h - header_h
@@ -247,7 +247,7 @@ def render_coupon_png(
     img.paste(drink, (dx, dy))
 
     center_text(BRAND_KO, display_brand, h - footer_h + footer_h * 0.36, RED)
-    center_text("경삼관, 장준하통일관점 사용가능", body_place, h - footer_h + footer_h * 0.70, INK)
+    center_text("경삼관점, 장준하통일관점 사용가능", body_place, h - footer_h + footer_h * 0.70, INK)
     return img
 
 
@@ -443,7 +443,7 @@ def coupon_html() -> str:
         </div>
         <footer class="footer">
           <div class="brand">카페아이엔지 CAFE ING</div>
-          <div class="place">경삼관, 장준하통일관점 사용가능</div>
+          <div class="place">경삼관점, 장준하통일관점 사용가능</div>
         </footer>
       </article>
     """
