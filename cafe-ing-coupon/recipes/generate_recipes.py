@@ -41,6 +41,19 @@ def register_fonts() -> None:
     pdfmetrics.registerFont(TTFont("Display", str(FONTS / "Cafe24Ssurround.ttf")))
 
 
+def group_hot_iced(
+    rows: list[tuple[str, str, str, str]],
+) -> list[tuple[str, list[tuple[str, str, str]]]]:
+    """빈 품목명은 직전 메뉴의 HOT/ICED 짝으로 묶는다."""
+    groups: list[tuple[str, list[tuple[str, str, str]]]] = []
+    for name, kind, rec, note in rows:
+        if name or not groups:
+            groups.append((name, [(kind, rec, note)]))
+        else:
+            groups[-1][1].append((kind, rec, note))
+    return groups
+
+
 def wrap(text: str, font: str, size: float, max_w: float) -> list[str]:
     if not text:
         return [""]
@@ -133,6 +146,41 @@ class Page:
             xx += w
         self.c.line(self.ml + self.content_w, self.y, self.ml + self.content_w, self.y + height)
 
+    def _wrap_cell(self, text: str, font: str, size: float, width: float) -> list[str]:
+        return wrap(text or "", font, size, max(width - 2.4 * mm, 6))
+
+    def _text_block_h(self, n_lines: int, font_size: float, pad: float) -> float:
+        return n_lines * (font_size + 1.6) + pad * 2
+
+    def _draw_lines(
+        self,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        lines: list[str],
+        font: str,
+        size: float,
+        fg: tuple[float, float, float],
+        align: str = "left",
+        valign: str = "center",
+        pad: float = 1.3 * mm,
+    ) -> None:
+        self.set_fill(fg)
+        self.c.setFont(font, size)
+        line_h = size + 1.6
+        content_h = (len(lines) - 1) * line_h + size
+        if valign == "center":
+            first = y + (h - content_h) / 2 + (content_h - size)
+        else:
+            first = y + h - pad - size
+        for i, line in enumerate(lines):
+            yy = first - i * line_h
+            if align == "center":
+                self.c.drawCentredString(x + w / 2, yy, line)
+            else:
+                self.c.drawString(x + 1.2 * mm, yy, line)
+
     def draw_row(
         self,
         cells: list[tuple[str, float, str, tuple[float, float, float] | None, tuple[float, float, float]]],
@@ -143,26 +191,97 @@ class Page:
         wrapped: list[list[str]] = []
         max_lines = 1
         for text, w, font, _bg, _fg in cells:
-            lines = wrap(text, font, font_size, w - 2.4 * mm)
+            lines = self._wrap_cell(text, font, font_size, w)
             wrapped.append(lines)
             max_lines = max(max_lines, len(lines))
-        h = max(min_h, max_lines * (font_size + 1.6) + pad * 2)
+        h = max(min_h, self._text_block_h(max_lines, font_size, pad))
         self.y -= h
         x = self.ml
         self.set_stroke(GRID)
         self.c.setLineWidth(0.7)
-        for (text, w, font, bg, fg), lines in zip(cells, wrapped):
+        for (_text, w, font, bg, fg), lines in zip(cells, wrapped):
             if bg:
                 self.set_fill(bg)
                 self.c.rect(x, self.y, w, h, stroke=0, fill=1)
             self.set_stroke(GRID)
             self.c.rect(x, self.y, w, h, stroke=1, fill=0)
-            self.set_fill(fg)
-            self.c.setFont(font, font_size)
-            top = self.y + h - pad - font_size
-            for i, line in enumerate(lines):
-                self.c.drawString(x + 1.2 * mm, top - i * (font_size + 1.6), line)
+            self._draw_lines(x, self.y, w, h, lines, font, font_size, fg, align="left", valign="top", pad=pad)
             x += w
+
+    def draw_item_group(
+        self,
+        item_w: float,
+        kind_w: float,
+        rec_w: float,
+        note_w: float,
+        item_name: str,
+        variants: list[tuple[str, str, str]],
+        font_size: float = 7.0,
+        min_h: float = 5.8 * mm,
+        pad: float = 1.3 * mm,
+        note_fg: tuple[float, float, float] | None = None,
+    ) -> None:
+        """품목·비고를 HOT/ICED 행에 걸쳐 합친다. variants: [(kind, recipe, note), ...]"""
+        item_lines = self._wrap_cell(item_name, "Bold", font_size, item_w)
+        notes = [n for _k, _r, n in variants if n]
+        note_text = "\n".join(dict.fromkeys(notes))
+        note_lines = self._wrap_cell(note_text, "Body", font_size, note_w)
+        if note_fg is None:
+            note_fg = NOTE_RED if any(ch in note_text for ch in ("X", "주의", "★★★")) else INK
+
+        kind_wraps: list[tuple[str, list[str], tuple | None, tuple]] = []
+        rec_wraps: list[list[str]] = []
+        need_hs: list[float] = []
+        for kind, rec, _note in variants:
+            label, kbg, kfg = self.kind_cell(kind)
+            k_lines = self._wrap_cell(label, "Bold", font_size, kind_w)
+            r_lines = self._wrap_cell(rec, "Body", font_size, rec_w)
+            kind_wraps.append((label, k_lines, kbg, kfg))
+            rec_wraps.append(r_lines)
+            need_hs.append(
+                max(
+                    min_h,
+                    self._text_block_h(max(len(k_lines), len(r_lines)), font_size, pad),
+                )
+            )
+
+        n = max(len(variants), 1)
+        pair_each = max(need_hs) if need_hs else min_h
+        h = max(
+            n * pair_each,
+            self._text_block_h(len(item_lines), font_size, pad),
+            self._text_block_h(len(note_lines), font_size, pad),
+            min_h,
+        )
+        sub_h = h / n
+        total_w = item_w + kind_w + rec_w + note_w
+
+        self.y -= h
+        y = self.y
+        x = self.ml
+
+        self.c.setLineWidth(0.7)
+        cy = y + h
+        for i, ((label, k_lines, kbg, kfg), r_lines) in enumerate(zip(kind_wraps, rec_wraps)):
+            if kbg:
+                self.set_fill(kbg)
+                self.c.rect(x + item_w, cy - sub_h, kind_w, sub_h, stroke=0, fill=1)
+            self._draw_lines(x + item_w, cy - sub_h, kind_w, sub_h, k_lines, "Bold", font_size, kfg, align="center")
+            self._draw_lines(x + item_w + kind_w, cy - sub_h, rec_w, sub_h, r_lines, "Body", font_size, INK, align="left")
+            if i < n - 1:
+                self.set_stroke(GRID)
+                self.c.line(x + item_w, cy - sub_h, x + item_w + kind_w + rec_w, cy - sub_h)
+            cy -= sub_h
+
+        self._draw_lines(x, y, item_w, h, item_lines, "Bold", font_size, INK, align="center")
+        self._draw_lines(x + item_w + kind_w + rec_w, y, note_w, h, note_lines, "Body", font_size, note_fg, align="left")
+
+        self.set_stroke(GRID)
+        self.c.rect(x, y, total_w, h, stroke=1, fill=0)
+        vx = x
+        for w in (item_w, kind_w, rec_w, note_w):
+            vx += w
+            self.c.line(vx, y, vx, y + h)
 
     def kind_cell(self, kind: str) -> tuple[str, tuple, tuple]:
         if kind == "HOT":
@@ -324,19 +443,6 @@ def page2_tea_juice(path: Path) -> None:
     p.section_bar("TEA & ADE")
     p.col_header(cols)
 
-    def row(name, kind, rec, note="", name_font="Bold"):
-        k, kbg, kfg = p.kind_cell(kind)
-        p.draw_row(
-            [
-                (name, item_w, name_font, None, INK),
-                (k, kind_w, "Bold", kbg, kfg),
-                (rec, rec_w, "Body", None, INK),
-                (note, note_w, "Body", None, INK),
-            ],
-            font_size=7.0,
-            min_h=5.8 * mm,
-        )
-
     teas = [
         ("허브티, 홍차\n(티백류)", "HOT", "해당티백 2EA + 온수 400g", ""),
         ("", "ICED", "우리기[해당티백 2EA + 온수 200g] + 얼음 한컵가득(350g) + 우려낸 티백과 함께 붓고 제공", ""),
@@ -354,8 +460,8 @@ def page2_tea_juice(path: Path) -> None:
         ("", "ICED", "얼음 가득(300g) + 제로피치우롱티시럽 6S(45g) + 정수 200g", ""),
         ("에이드\n(레몬/자몽/청포도/한라봉)", "ICED", "해당농축에이드 1.5P(45g, 계량 체크 필요) + 얼음 가득(300g) + 사이다 1EA", "블루레몬에이드\n레몬농축액 1P(30g) + 블루레몬시럽 2P(20g)"),
     ]
-    for r in teas:
-        row(*r)
+    for name, variants in group_hot_iced(teas):
+        p.draw_item_group(item_w, kind_w, rec_w, note_w, name, variants, font_size=7.0, min_h=5.8 * mm)
 
     p.section_bar("JUICE / Only iced")
     p.col_header([("품목", item_w + kind_w), ("제조순서", rec_w), ("비고", note_w)])
@@ -433,18 +539,8 @@ def page3_coffee(path: Path) -> None:
         ("콜드브루커피", "ICED", "얼음 밑선(250g) + 정수 200g + 콜드브루 원액 100g", ""),
         ("콜드브루라떼", "ICED", "얼음 밑선(250g) + 우유 200g + 콜드브루 원액 100g", ""),
     ]
-    for name, kind, rec, note in rows:
-        k, kbg, kfg = p.kind_cell(kind)
-        p.draw_row(
-            [
-                (name, item_w, "Bold", None, INK),
-                (k, kind_w, "Bold", kbg, kfg),
-                (rec, rec_w, "Body", None, INK),
-                (note, note_w, "Body", None, INK),
-            ],
-            font_size=7.1,
-            min_h=5.6 * mm,
-        )
+    for name, variants in group_hot_iced(rows):
+        p.draw_item_group(item_w, kind_w, rec_w, note_w, name, variants, font_size=7.1, min_h=5.6 * mm)
 
     p.tip_box(
         [
@@ -483,18 +579,8 @@ def page4_noncoffee(path: Path) -> None:
         ("바닐라죠리퐁라떼", "ICED", "블렌딩[우유 160g + 바닐라파우더 3S(42g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 죠리퐁 15g 토핑", ""),
         ("딸기죠리퐁라떼", "ICED", "블렌딩[우유 160g + 딸기리플잼 60g + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 죠리퐁 15g 토핑", ""),
     ]
-    for name, kind, rec, note in rows:
-        k, kbg, kfg = p.kind_cell(kind)
-        p.draw_row(
-            [
-                (name, item_w, "Bold", None, INK),
-                (k, kind_w, "Bold", kbg, kfg),
-                (rec, rec_w, "Body", None, INK),
-                (note, note_w, "Body", None, NOTE_RED if "X" in note else INK),
-            ],
-            font_size=7.2,
-            min_h=6.0 * mm,
-        )
+    for name, variants in group_hot_iced(rows):
+        p.draw_item_group(item_w, kind_w, rec_w, note_w, name, variants, font_size=7.2, min_h=6.0 * mm)
 
     p.tip_box(
         [
