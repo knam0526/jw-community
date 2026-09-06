@@ -90,24 +90,13 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
         return tuple(channel / 255 for channel in color)
 
     c.saveState()
-    c.setStrokeColorRGB(*rgb(BORDER))
-    c.setLineWidth(0.45)
-    c.rect(x, y, w, h, stroke=1, fill=0)
 
-    # header
+    # header / footer fills first so they cannot cover cut lines
     c.setFillColorRGB(*rgb(HEADER_BG))
     c.rect(x, y + h - header_h, w, header_h, stroke=0, fill=1)
-    c.setStrokeColorRGB(*rgb(LINE))
-    c.setLineWidth(0.35)
-    c.line(x, y + h - header_h, x + w, y + h - header_h)
-    draw_logo_pdf(c, logo, x, y + h - header_h, w, header_h)
-
-    # footer
     c.setFillColorRGB(*rgb(FOOTER_BG))
     c.rect(x, y, w, footer_h, stroke=0, fill=1)
-    c.setStrokeColorRGB(*rgb(LINE))
-    c.setLineWidth(0.35)
-    c.line(x, y + footer_h, x + w, y + footer_h)
+    draw_logo_pdf(c, logo, x, y + h - header_h, w, header_h)
 
     c.setFillColorRGB(*rgb(RED))
     c.setFont("Display", BRAND_PT)
@@ -155,6 +144,15 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
         preserveAspectRatio=True,
     )
 
+    # strokes last: header/footer dividers + full coupon cut line
+    c.setStrokeColorRGB(*rgb(LINE))
+    c.setLineWidth(0.6)
+    c.line(x, y + h - header_h, x + w, y + h - header_h)
+    c.line(x, y + footer_h, x + w, y + footer_h)
+    c.setStrokeColorRGB(*rgb(BORDER))
+    c.setLineWidth(0.75)
+    c.rect(x, y, w, h, stroke=1, fill=0)
+
     c.restoreState()
 
 
@@ -179,6 +177,20 @@ def build_pdf(drink_path: Path, logo_path: Path, pdf_path: Path, paths: dict[str
             y = (bottom + (ROWS - 1 - row) * COUPON_H_MM) * mm
             draw_coupon_pdf(c, x, y, drink, logo)
 
+    # redraw the full cut grid so shared edges stay visible
+    c.setStrokeColorRGB(30 / 255, 30 / 255, 30 / 255)
+    c.setLineWidth(0.75)
+    grid_x = left * mm
+    grid_y = bottom * mm
+    cell_w = COUPON_W_MM * mm
+    cell_h = COUPON_H_MM * mm
+    for col in range(COLS + 1):
+        x = grid_x + col * cell_w
+        c.line(x, grid_y, x, grid_y + ROWS * cell_h)
+    for row in range(ROWS + 1):
+        y = grid_y + row * cell_h
+        c.line(grid_x, y, grid_x + COLS * cell_w, y)
+
     c.save()
 
 
@@ -199,9 +211,6 @@ def render_coupon_png(
 
     d.rectangle((0, 0, w - 1, header_h - 1), fill=HEADER_BG)
     d.rectangle((0, h - footer_h, w - 1, h - 1), fill=FOOTER_BG)
-    d.line((0, header_h, w, header_h), fill=LINE, width=max(1, mm_to_px(0.12, dpi)))
-    d.line((0, h - footer_h, w, h - footer_h), fill=LINE, width=max(1, mm_to_px(0.12, dpi)))
-    d.rectangle((0, 0, w - 1, h - 1), outline=BORDER, width=max(2, mm_to_px(0.16, dpi)))
 
     display_title = pil_font(paths["display"], TITLE_PT, dpi)
     display_price = pil_font(paths["display"], PRICE_PT, dpi)
@@ -257,6 +266,13 @@ def render_coupon_png(
 
     center_text(BRAND_KO, display_brand, h - footer_h + footer_h * 0.36, RED)
     center_text(PLACE_LINE, body_place, h - footer_h + footer_h * 0.70, INK)
+
+    divider_w = max(2, mm_to_px(0.18, dpi))
+    border_w = max(3, mm_to_px(0.22, dpi))
+    inset = border_w // 2
+    d.line((0, header_h, w, header_h), fill=LINE, width=divider_w)
+    d.line((0, h - footer_h, w, h - footer_h), fill=LINE, width=divider_w)
+    d.rectangle((inset, inset, w - 1 - inset, h - 1 - inset), outline=BORDER, width=border_w)
     return img
 
 
@@ -330,7 +346,7 @@ def write_html(html_path: Path) -> None:
     .coupon {{
       width: {COUPON_W_MM}mm;
       height: {COUPON_H_MM}mm;
-      border: 0.35pt solid #1e1e1e;
+      border: 0.75pt solid #1e1e1e;
       display: flex;
       flex-direction: column;
       background: #fff;
@@ -339,7 +355,7 @@ def write_html(html_path: Path) -> None:
     .header {{
       height: {HEADER_H_MM}mm;
       background: #ececec;
-      border-bottom: 0.35pt solid #323232;
+      border-bottom: 0.6pt solid #323232;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -388,7 +404,7 @@ def write_html(html_path: Path) -> None:
     .footer {{
       height: {FOOTER_H_MM}mm;
       background: #f3f3f3;
-      border-top: 0.35pt solid #323232;
+      border-top: 0.6pt solid #323232;
       display: flex;
       flex-direction: column;
       align-items: center;
