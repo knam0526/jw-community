@@ -73,15 +73,17 @@ def wrap(text: str, font: str, size: float, max_w: float) -> list[str]:
     return lines or [""]
 
 
-# 원본 인쇄본: 얼음 안내는 파랑, 나머지 계량(g/샷/스푼/펌프)은 빨강.
-ICE_RE = re.compile(
+# 원본: 우유·정수·얼음은 파랑, 온수·스팀우유·샷·스푼·펌프·기타 g는 빨강.
+BLUE_RE = re.compile(
     r"얼음\s*(?:한컵가득|가득|밑선↓|밑선)\([^)]+\)"
     r"|밑선↓\([^)]+\)"
-    r"|밑선=\d+g"
-    r"|가득(?:\(플랫\))?=\d+g"
+    r"|(?<![가-힣])우유\s*\d+(?:\.\d+)?g"
+    r"|정수\s*\d+(?:\.\d+)?g"
 )
-AMT_RE = re.compile(
-    r"약\s*\d+g"
+RED_RE = re.compile(
+    r"스팀우유\s*\d+(?:\.\d+)?g"
+    r"|온수\s*\d+(?:\.\d+)?g"
+    r"|약\s*\d+g"
     r"|우유\d+:거품\d+"
     r"|\d+(?:\.\d+)?(?:샷|초|줄|회|cm|EA)"
     r"|\d+(?:\.\d+)?(?:SF|P|S)\(\d+g\)"
@@ -89,22 +91,18 @@ AMT_RE = re.compile(
     r"|\d{1,3}(?:,\d{3})+g"
     r"|(?<![A-Za-z0-9])\d+(?:\.\d+)?g"
 )
+TIP_LABEL_RE = re.compile(r"▷[^:]*:")
 
 
-def colorize_recipe(text: str) -> list[tuple[str, tuple[float, float, float]]]:
-    if not text:
-        return [("", INK)]
-    marks: list[tuple[int, int, tuple[float, float, float]]] = []
-    for m in ICE_RE.finditer(text):
-        marks.append((m.start(), m.end(), ICED))
-    for m in AMT_RE.finditer(text):
-        if any(not (m.end() <= a or m.start() >= b) for a, b, _c in marks):
-            continue
-        marks.append((m.start(), m.end(), HOT))
+def _apply_marks(
+    text: str, marks: list[tuple[int, int, tuple[float, float, float]]]
+) -> list[tuple[str, tuple[float, float, float]]]:
     marks.sort(key=lambda t: (t[0], t[1]))
     out: list[tuple[str, tuple[float, float, float]]] = []
     pos = 0
     for a, b, col in marks:
+        if a < pos:
+            continue
         if a > pos:
             out.append((text[pos:a], INK))
         out.append((text[a:b], col))
@@ -112,6 +110,31 @@ def colorize_recipe(text: str) -> list[tuple[str, tuple[float, float, float]]]:
     if pos < len(text):
         out.append((text[pos:], INK))
     return out or [("", INK)]
+
+
+def colorize_recipe(text: str) -> list[tuple[str, tuple[float, float, float]]]:
+    if not text:
+        return [("", INK)]
+    marks: list[tuple[int, int, tuple[float, float, float]]] = []
+    for m in BLUE_RE.finditer(text):
+        marks.append((m.start(), m.end(), ICED))
+    for m in RED_RE.finditer(text):
+        if any(not (m.end() <= a or m.start() >= b) for a, b, _c in marks):
+            continue
+        marks.append((m.start(), m.end(), HOT))
+    return _apply_marks(text, marks)
+
+
+def colorize_tip(text: str) -> list[tuple[str, tuple[float, float, float]]]:
+    """TIP은 라벨(▷… :)만 빨강, 설명은 검정. 경고 한 줄은 통째로 빨강."""
+    if not text:
+        return [("", INK)]
+    if TIP_LABEL_RE.search(text):
+        marks = [(m.start(), m.end(), NOTE_RED) for m in TIP_LABEL_RE.finditer(text)]
+        return _apply_marks(text, marks)
+    if text.strip().startswith("▷"):
+        return [(text, NOTE_RED)]
+    return [(text, INK)]
 
 
 def wrap_colored(
@@ -398,28 +421,26 @@ class Page:
         return kind, None, INK
 
     def tip_box(self, lines: list[str], height: float | None = None) -> None:
-        h = height or (8.2 * mm + len(lines) * 3.6 * mm)
+        h = height or (7.6 * mm + len(lines) * 3.55 * mm)
+        label_w = 36 * mm
         self.y -= h + 1.2 * mm
         self.set_fill(TAN)
-        self.c.rect(self.ml, self.y + h - 6.2 * mm, 38 * mm, 6.2 * mm, stroke=0, fill=1)
-        self.set_fill(WHITE)
-        self.c.setFont("Bold", 8.5)
-        self.c.drawCentredString(self.ml + 19 * mm, self.y + h - 4.3 * mm, "ING 레시피 TIP")
+        self.c.rect(self.ml, self.y, label_w, h, stroke=0, fill=1)
         self.set_fill(TAN_BG)
-        self.c.rect(self.ml + 38 * mm, self.y, self.content_w - 38 * mm, h, stroke=0, fill=1)
-        self.set_stroke(GRID)
-        self.c.rect(self.ml, self.y, self.content_w, h, stroke=1, fill=0)
-        self.c.line(self.ml + 38 * mm, self.y, self.ml + 38 * mm, self.y + h)
+        self.c.rect(self.ml + label_w, self.y, self.content_w - label_w, h, stroke=0, fill=1)
+        self.set_fill(WHITE)
+        self.c.setFont("Bold", 8.2)
+        self.c.drawCentredString(self.ml + label_w / 2, self.y + h / 2 - 2.6, "ING 레시피 TIP")
         self.c.setFont("Body", 7.1)
-        ty = self.y + h - 9.4 * mm
+        ty = self.y + h - 4.6 * mm
         for line in lines:
-            xx = self.ml + 40 * mm
-            for frag, color in colorize_recipe(line):
+            xx = self.ml + label_w + 2.2 * mm
+            for frag, color in colorize_tip(line):
                 self.set_fill(color)
                 self.c.setFont("Body", 7.1)
                 self.c.drawString(xx, ty, frag)
                 xx += pdfmetrics.stringWidth(frag, "Body", 7.1)
-            ty -= 3.55 * mm
+            ty -= 3.5 * mm
 
 
 def page1_smoothie(path: Path) -> None:
