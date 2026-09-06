@@ -2,6 +2,6 @@
 - 출처: https://fonts.cafe24.com/
 - 라이선스: SIL Open Font License (상업적 사용 가능, 폰트 파일 유료 판매 금지)
 
-Pretendard Medium
+Pretendard Medium / Bold
 - 출처: https://github.com/orioncactus/pretendard
 - 라이선스: SIL Open Font License 1.1
