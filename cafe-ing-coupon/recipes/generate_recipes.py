@@ -548,9 +548,9 @@ def page1_smoothie(path: Path) -> None:
 
 
 def page2_tea_juice(path: Path) -> None:
-    p = Page(path, landscape=False)
+    p = Page(path, landscape=True)
     p.title_header("티 · 에이드 · 주스")
-    item_w, kind_w, rec_w = 36 * mm, 16 * mm, 108 * mm
+    item_w, kind_w, rec_w = 38 * mm, 16 * mm, 166 * mm
     note_w = p.content_w - item_w - kind_w - rec_w
     cols = [("품목", item_w), ("구분", kind_w), ("제조순서", rec_w), ("비고", note_w)]
 
@@ -575,38 +575,28 @@ def page2_tea_juice(path: Path) -> None:
         ("에이드\n(레몬/자몽/청포도/한라봉)", "ICED", "해당농축에이드 1.5P(45g, 계량 체크 필요) + 얼음 가득(300g) + 사이다 1EA", "블루레몬에이드\n레몬농축액 1P(30g) + 블루레몬시럽 2P(20g)"),
     ]
     for name, variants in group_hot_iced(teas):
-        p.draw_item_group(item_w, kind_w, rec_w, note_w, name, variants, font_size=7.0, min_h=5.8 * mm)
+        p.draw_item_group(item_w, kind_w, rec_w, note_w, name, variants, font_size=7.1, min_h=5.6 * mm)
 
     p.section_bar("JUICE / Only iced")
     p.col_header([("품목", item_w + kind_w), ("제조순서", rec_w), ("비고", note_w)])
     juices = [
-        ("딸기주스", "블렌딩[정수 220g + 냉동딸기 130g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", False),
-        ("딸기바나나주스", "블렌딩[정수 220g + 냉동딸기 60g + 냉동바나나 60g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", False),
-        ("망고주스", "블렌딩[정수 220g + 냉동망고 130g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", False),
-        ("초코바나나주스", "블렌딩[우유 220g + 초코소스 1P(37g) + 냉동바나나 80g] + 얼음 밑선↓(200g)에 붓고 제공", False),
-        ("바나나주스", "블렌딩[우유 220g + 냉동바나나 110g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", False),
-        ("키위주스", "블렌딩[정수 220g + 냉동키위 160g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", False),
-        ("키위바나나주스", "블렌딩[정수 220g + 냉동키위 120g + 냉동바나나 50g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", False),
-        ("바나나주스-생과일", "블렌딩[우유 100g + 바나나 1EA(60g~70g) + 설탕시럽 3P(30g)] + 얼음 밑선↓(200g)에 붓고 제공", True),
-        ("키위주스-생과일", "블렌딩[정수 100g + 키위 1EA(125g~135g) + 설탕시럽 3P(30g)] + 얼음 밑선↓(200g)에 붓고 제공", True),
-        ("키위바나나주스-생과일", "블렌딩[정수 100g + 우유 50g + 키위 1EA + 바나나 1EA + 설탕시럽 3P(30g)] + 얼음 밑선↓(200g)에 붓고 제공", True),
-        ("토마토주스-생과일", "블렌딩[정수 180g + 토마토 1EA + 설탕시럽 2P(20g) + 얼음 3EA] + 얼음 밑선↓(200g)에 붓고 제공", True),
+        ("딸기주스", "블렌딩[정수 220g + 냉동딸기 130g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", "당도는 손님의 선택에 맞게 제조"),
+        ("딸기바나나주스", "블렌딩[정수 220g + 냉동딸기 60g + 냉동바나나 60g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", ""),
+        ("망고주스", "블렌딩[정수 220g + 냉동망고 130g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", ""),
+        ("초코바나나주스", "블렌딩[우유 220g + 초코소스 1P(37g) + 냉동바나나 80g] + 얼음 밑선↓(200g)에 붓고 제공", ""),
+        ("바나나주스", "블렌딩[우유 220g + 냉동바나나 110g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", ""),
+        ("키위주스", "블렌딩[정수 220g + 냉동키위 160g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", "*키위주스 제조 시 씨갈림 주의*"),
+        ("키위바나나주스", "블렌딩[정수 220g + 냉동키위 120g + 냉동바나나 50g + 설탕시럽 4P(40g)] + 얼음 밑선↓(200g)에 붓고 제공", ""),
     ]
-    for i, (name, rec, fresh) in enumerate(juices):
-        bg = YELLOW if fresh else None
-        note = ""
-        if i == 0:
-            note = "당도는 손님의 선택에 맞게 제조"
-        if "키위주스" == name:
-            note = "*키위주스 제조 시 씨갈림 주의*"
+    for name, rec, note in juices:
         p.draw_row(
             [
-                (name, item_w + kind_w, "Bold", bg, INK),
-                (rec, rec_w, "Body", bg, INK),
-                (note, note_w, "Body", bg, NOTE_RED if note else INK),
+                (name, item_w + kind_w, "Bold", None, INK),
+                (rec, rec_w, "Body", None, INK),
+                (note, note_w, "Body", None, NOTE_RED if note else INK),
             ],
-            font_size=7.0,
-            min_h=6.0 * mm,
+            font_size=7.1,
+            min_h=5.8 * mm,
             colorize_idx=1,
         )
 
@@ -614,10 +604,9 @@ def page2_tea_juice(path: Path) -> None:
         [
             "▷ 블렌디드 음료 제조 시 블렌더 볼에 (액체 → 원물 → 얼음) 투입 순서를 꼭 지켜주세요!  (★★기계 작동이 멈춘 후 볼 제거하기★★)",
             "▷ mix[ ] : 원물1 : 정수 or 온수1 배합 섞어주기     ▷ 휘핑크림 : 포모나, 약 두바퀴 반(25g)     ▷ 계량단위 : P=펌프, S=스푼, SF=스푼가득, EA=개",
-            "▷ 우리기 : 티백 + 온수 / 3분     ▷ 블렌딩[ ] : 블렌디드(블렌더 활용) 음료     ▷ (벽면) : 계량 후 컵을 돌려가며 벽면에 펴발라주기",
-            "▷ 얼음 : 가득=300g, 밑선↓=200g",
+            "▷ 우리기 : 티백 + 온수 / 3분     ▷ 블렌딩[ ] : 블렌디드(블렌더 활용) 음료     ▷ (벽면) : 계량 후 컵을 돌려가며 벽면에 펴발라주기     ▷ 얼음 : 가득=300g, 밑선↓=200g",
         ],
-        height=22 * mm,
+        height=16 * mm,
     )
     p.footer_bar()
     p.save()
