@@ -46,16 +46,14 @@ def mm_to_px(mm_val: float, dpi: int = DPI) -> int:
 
 def load_fonts() -> dict[str, Path]:
     return {
-        "gothic": FONTS / "NanumGothic.ttf",
-        "gothic_bold": FONTS / "NanumGothicBold.ttf",
-        "square_bold": FONTS / "NanumSquareB.ttf",
+        "display": FONTS / "Cafe24Ssurround.ttf",
+        "body": FONTS / "Pretendard-Medium.ttf",
     }
 
 
 def register_pdf_fonts(paths: dict[str, Path]) -> None:
-    pdfmetrics.registerFont(TTFont("Gothic", str(paths["gothic"])))
-    pdfmetrics.registerFont(TTFont("GothicBold", str(paths["gothic_bold"])))
-    pdfmetrics.registerFont(TTFont("SquareBold", str(paths["square_bold"])))
+    pdfmetrics.registerFont(TTFont("Display", str(paths["display"])))
+    pdfmetrics.registerFont(TTFont("Body", str(paths["body"])))
 
 
 def draw_logo_pdf(c: canvas.Canvas, logo: ImageReader, x: float, y: float, w: float, header_h: float) -> None:
@@ -103,11 +101,11 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
     c.line(x, y + footer_h, x + w, y + footer_h)
 
     c.setFillColorRGB(*rgb(RED))
-    c.setFont("GothicBold", 7.1)
+    c.setFont("Display", 7.35)
     c.drawCentredString(x + w / 2, y + footer_h - 4.15 * mm, BRAND_KO)
 
     c.setFillColorRGB(*rgb(INK))
-    c.setFont("Gothic", 6.15)
+    c.setFont("Body", 6.25)
     c.drawCentredString(x + w / 2, y + 3.15 * mm, "경삼관, 장준하통일관점 사용가능")
 
     # middle: title + price vertically centered with the drink
@@ -116,22 +114,22 @@ def draw_coupon_pdf(c: canvas.Canvas, x: float, y: float, drink: ImageReader, lo
     body_h = body_top - body_bot
     body_mid_x = x + w * 0.38
 
-    title_size = 13.2
-    price_size = 8.4
-    gap = 1.15 * mm
-    title_ascent = pdfmetrics.getAscent("GothicBold") * title_size / 1000
-    title_descent = abs(pdfmetrics.getDescent("GothicBold")) * title_size / 1000
-    price_ascent = pdfmetrics.getAscent("GothicBold") * price_size / 1000
-    price_descent = abs(pdfmetrics.getDescent("GothicBold")) * price_size / 1000
+    title_size = 13.6
+    price_size = 8.6
+    gap = 1.2 * mm
+    title_ascent = pdfmetrics.getAscent("Display") * title_size / 1000
+    title_descent = abs(pdfmetrics.getDescent("Display")) * title_size / 1000
+    price_ascent = pdfmetrics.getAscent("Display") * price_size / 1000
+    price_descent = abs(pdfmetrics.getDescent("Display")) * price_size / 1000
     block_h = title_ascent + title_descent + gap + price_ascent + price_descent
     block_top = body_bot + (body_h + block_h) / 2
     title_baseline = block_top - title_ascent
     price_baseline = title_baseline - title_descent - gap - price_ascent
 
     c.setFillColorRGB(*rgb(NAVY))
-    c.setFont("GothicBold", title_size)
+    c.setFont("Display", title_size)
     c.drawCentredString(body_mid_x, title_baseline, "음료교환권")
-    c.setFont("GothicBold", price_size)
+    c.setFont("Display", price_size)
     c.drawCentredString(body_mid_x, price_baseline, "(2,000원)")
 
     drink_h = 20.2 * mm
@@ -196,10 +194,10 @@ def render_coupon_png(
     d.line((0, h - footer_h, w, h - footer_h), fill=LINE, width=max(1, mm_to_px(0.12, dpi)))
     d.rectangle((0, 0, w - 1, h - 1), outline=BORDER, width=max(2, mm_to_px(0.16, dpi)))
 
-    gothic_b = pil_font(paths["gothic_bold"], 13.2, dpi)
-    gothic_price = pil_font(paths["gothic_bold"], 8.4, dpi)
-    gothic_red = pil_font(paths["gothic_bold"], 7.1, dpi)
-    gothic = pil_font(paths["gothic"], 6.15, dpi)
+    display_title = pil_font(paths["display"], 13.6, dpi)
+    display_price = pil_font(paths["display"], 8.6, dpi)
+    display_brand = pil_font(paths["display"], 7.35, dpi)
+    body_place = pil_font(paths["body"], 6.25, dpi)
 
     def center_text(text: str, font: ImageFont.FreeTypeFont, cy: float, fill) -> None:
         bbox = d.textbbox((0, 0), text, font=font)
@@ -220,15 +218,15 @@ def render_coupon_png(
 
     title = "음료교환권"
     price = "(2,000원)"
-    title_bbox = d.textbbox((0, 0), title, font=gothic_b)
-    price_bbox = d.textbbox((0, 0), price, font=gothic_price)
-    gap = mm_to_px(1.15, dpi)
+    title_bbox = d.textbbox((0, 0), title, font=display_title)
+    price_bbox = d.textbbox((0, 0), price, font=display_price)
+    gap = mm_to_px(1.2, dpi)
     block_h = (title_bbox[3] - title_bbox[1]) + gap + (price_bbox[3] - price_bbox[1])
     block_top = body_top + (body_h - block_h) / 2
     d.text(
         (left_cx - (title_bbox[2] - title_bbox[0]) / 2 - title_bbox[0], block_top - title_bbox[1]),
         title,
-        font=gothic_b,
+        font=display_title,
         fill=NAVY,
     )
     d.text(
@@ -237,7 +235,7 @@ def render_coupon_png(
             block_top + (title_bbox[3] - title_bbox[1]) + gap - price_bbox[1],
         ),
         price,
-        font=gothic_price,
+        font=display_price,
         fill=NAVY,
     )
 
@@ -248,8 +246,8 @@ def render_coupon_png(
     dy = body_top + (body_h - drink_h) // 2
     img.paste(drink, (dx, dy))
 
-    center_text(BRAND_KO, gothic_red, h - footer_h + footer_h * 0.36, RED)
-    center_text("경삼관, 장준하통일관점 사용가능", gothic, h - footer_h + footer_h * 0.70, INK)
+    center_text(BRAND_KO, display_brand, h - footer_h + footer_h * 0.36, RED)
+    center_text("경삼관, 장준하통일관점 사용가능", body_place, h - footer_h + footer_h * 0.70, INK)
     return img
 
 
@@ -275,24 +273,19 @@ def write_html(html_path: Path) -> None:
   <title>CAFE ING 음료교환권 2,000원 × 15매 (A4)</title>
   <style>
     @font-face {{
-      font-family: "NanumGothic";
-      src: url("fonts/NanumGothic.ttf") format("truetype");
-      font-weight: 400;
-    }}
-    @font-face {{
-      font-family: "NanumGothic";
-      src: url("fonts/NanumGothicBold.ttf") format("truetype");
+      font-family: "Cafe24Ssurround";
+      src: url("fonts/Cafe24Ssurround.ttf") format("truetype");
       font-weight: 700;
     }}
     @font-face {{
-      font-family: "NanumSquare";
-      src: url("fonts/NanumSquareB.ttf") format("truetype");
-      font-weight: 700;
+      font-family: "Pretendard";
+      src: url("fonts/Pretendard-Medium.ttf") format("truetype");
+      font-weight: 500;
     }}
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
     html, body {{ background: #ddd; }}
     .toolbar {{
-      font-family: "NanumGothic", sans-serif;
+      font-family: "Pretendard", sans-serif;
       background: #222;
       color: #fff;
       padding: 10px 16px;
@@ -363,16 +356,16 @@ def write_html(html_path: Path) -> None:
       align-items: center;
       text-align: center;
       color: {NAVY_HEX};
-      font-family: "NanumGothic", sans-serif;
+      font-family: "Cafe24Ssurround", sans-serif;
       font-weight: 700;
     }}
     .copy h2 {{
-      font-size: 13.2pt;
+      font-size: 13.6pt;
       line-height: 1.15;
       font-weight: 700;
     }}
     .copy p {{
-      font-size: 8.4pt;
+      font-size: 8.6pt;
       margin-top: 0.8mm;
     }}
     .drink {{
@@ -392,18 +385,20 @@ def write_html(html_path: Path) -> None:
       align-items: center;
       justify-content: center;
       gap: 0.7mm;
-      font-family: "NanumGothic", sans-serif;
+      font-family: "Cafe24Ssurround", "Pretendard", sans-serif;
       text-align: center;
       padding: 0 1.5mm;
     }}
     .footer .brand {{
       color: {RED_HEX};
+      font-family: "Cafe24Ssurround", sans-serif;
       font-weight: 700;
-      font-size: 7.1pt;
+      font-size: 7.35pt;
     }}
     .footer .place {{
       color: #1c1c1c;
-      font-size: 6.15pt;
+      font-family: "Pretendard", sans-serif;
+      font-size: 6.25pt;
     }}
     @media print {{
       @page {{ size: A4; margin: 0; }}

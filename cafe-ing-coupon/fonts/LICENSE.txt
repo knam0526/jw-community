@@ -1,2 +1,7 @@
-나눔고딕·나눔스퀘어는 네이버가 SIL Open Font License로 공개한 글꼴입니다.
-출처: https://hangeul.naver.com/font
+카페24 써라운드 (Cafe24 Ssurround)
+- 출처: https://fonts.cafe24.com/
+- 라이선스: SIL Open Font License (상업적 사용 가능, 폰트 파일 유료 판매 금지)
+
+Pretendard Medium
+- 출처: https://github.com/orioncactus/pretendard
+- 라이선스: SIL Open Font License 1.1
