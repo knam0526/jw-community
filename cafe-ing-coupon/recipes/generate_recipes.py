@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from reportlab.lib.units import mm
@@ -70,6 +71,83 @@ def wrap(text: str, font: str, size: float, max_w: float) -> list[str]:
                 cur = ch
         lines.append(cur)
     return lines or [""]
+
+
+# 원본 인쇄본: 얼음 안내는 파랑, 나머지 계량(g/샷/스푼/펌프)은 빨강.
+ICE_RE = re.compile(
+    r"얼음\s*(?:한컵가득|가득|밑선↓|밑선)\([^)]+\)"
+    r"|밑선↓\([^)]+\)"
+    r"|밑선=\d+g"
+    r"|가득(?:\(플랫\))?=\d+g"
+)
+AMT_RE = re.compile(
+    r"약\s*\d+g"
+    r"|우유\d+:거품\d+"
+    r"|\d+(?:\.\d+)?(?:샷|초|줄|회|cm|EA)"
+    r"|\d+(?:\.\d+)?(?:SF|P|S)\(\d+g\)"
+    r"|\d+(?:\.\d+)?(?:SF|P|S)(?=$|[^A-Za-z가-힣])"
+    r"|\d{1,3}(?:,\d{3})+g"
+    r"|(?<![A-Za-z0-9])\d+(?:\.\d+)?g"
+)
+
+
+def colorize_recipe(text: str) -> list[tuple[str, tuple[float, float, float]]]:
+    if not text:
+        return [("", INK)]
+    marks: list[tuple[int, int, tuple[float, float, float]]] = []
+    for m in ICE_RE.finditer(text):
+        marks.append((m.start(), m.end(), ICED))
+    for m in AMT_RE.finditer(text):
+        if any(not (m.end() <= a or m.start() >= b) for a, b, _c in marks):
+            continue
+        marks.append((m.start(), m.end(), HOT))
+    marks.sort(key=lambda t: (t[0], t[1]))
+    out: list[tuple[str, tuple[float, float, float]]] = []
+    pos = 0
+    for a, b, col in marks:
+        if a > pos:
+            out.append((text[pos:a], INK))
+        out.append((text[a:b], col))
+        pos = b
+    if pos < len(text):
+        out.append((text[pos:], INK))
+    return out or [("", INK)]
+
+
+def wrap_colored(
+    spans: list[tuple[str, tuple[float, float, float]]],
+    font: str,
+    size: float,
+    max_w: float,
+) -> list[list[tuple[str, tuple[float, float, float]]]]:
+    lines: list[list[tuple[str, tuple[float, float, float]]]] = []
+    cur: list[tuple[str, tuple[float, float, float]]] = []
+    cur_w = 0.0
+
+    def push_ch(ch: str, color: tuple[float, float, float]) -> None:
+        nonlocal cur_w
+        if cur and cur[-1][1] == color:
+            cur[-1] = (cur[-1][0] + ch, color)
+        else:
+            cur.append((ch, color))
+        cur_w += pdfmetrics.stringWidth(ch, font, size)
+
+    for text, color in spans:
+        for ch in text:
+            if ch == "\n":
+                lines.append(cur or [("", color)])
+                cur = []
+                cur_w = 0.0
+                continue
+            cw = pdfmetrics.stringWidth(ch, font, size)
+            if cur and cur_w + cw > max_w:
+                lines.append(cur)
+                cur = []
+                cur_w = 0.0
+            push_ch(ch, color)
+    if cur:
+        lines.append(cur)
+    return lines or [[("", INK)]]
 
 
 class Page:
@@ -149,8 +227,44 @@ class Page:
     def _wrap_cell(self, text: str, font: str, size: float, width: float) -> list[str]:
         return wrap(text or "", font, size, max(width - 2.4 * mm, 6))
 
+    def _wrap_recipe(self, text: str, font: str, size: float, width: float):
+        return wrap_colored(colorize_recipe(text), font, size, max(width - 2.4 * mm, 6))
+
     def _text_block_h(self, n_lines: int, font_size: float, pad: float) -> float:
         return n_lines * (font_size + 1.6) + pad * 2
+
+    def _draw_rich_lines(
+        self,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        lines: list[list[tuple[str, tuple[float, float, float]]]],
+        font: str,
+        size: float,
+        align: str = "left",
+        valign: str = "center",
+        pad: float = 1.3 * mm,
+    ) -> None:
+        line_h = size + 1.6
+        content_h = (len(lines) - 1) * line_h + size
+        if valign == "center":
+            first = y + (h - content_h) / 2 + (content_h - size)
+        else:
+            first = y + h - pad - size
+        self.c.setFont(font, size)
+        for i, spans in enumerate(lines):
+            yy = first - i * line_h
+            if align == "center":
+                tw = sum(pdfmetrics.stringWidth(t, font, size) for t, _c in spans)
+                xx = x + (w - tw) / 2
+            else:
+                xx = x + 1.2 * mm
+            for frag, color in spans:
+                self.set_fill(color)
+                self.c.setFont(font, size)
+                self.c.drawString(xx, yy, frag)
+                xx += pdfmetrics.stringWidth(frag, font, size)
 
     def _draw_lines(
         self,
@@ -166,20 +280,9 @@ class Page:
         valign: str = "center",
         pad: float = 1.3 * mm,
     ) -> None:
-        self.set_fill(fg)
-        self.c.setFont(font, size)
-        line_h = size + 1.6
-        content_h = (len(lines) - 1) * line_h + size
-        if valign == "center":
-            first = y + (h - content_h) / 2 + (content_h - size)
-        else:
-            first = y + h - pad - size
-        for i, line in enumerate(lines):
-            yy = first - i * line_h
-            if align == "center":
-                self.c.drawCentredString(x + w / 2, yy, line)
-            else:
-                self.c.drawString(x + 1.2 * mm, yy, line)
+        self._draw_rich_lines(
+            x, y, w, h, [[(line, fg)] for line in lines], font, size, align=align, valign=valign, pad=pad
+        )
 
     def draw_row(
         self,
@@ -187,11 +290,15 @@ class Page:
         font_size: float = 7.4,
         min_h: float = 6.4 * mm,
         pad: float = 1.3 * mm,
+        colorize_idx: int | None = None,
     ) -> None:
-        wrapped: list[list[str]] = []
+        wrapped: list[list[list[tuple[str, tuple[float, float, float]]]]] = []
         max_lines = 1
-        for text, w, font, _bg, _fg in cells:
-            lines = self._wrap_cell(text, font, font_size, w)
+        for i, (text, w, font, _bg, fg) in enumerate(cells):
+            if colorize_idx is not None and i == colorize_idx:
+                lines = self._wrap_recipe(text, font, font_size, w)
+            else:
+                lines = [[(ln, fg)] for ln in self._wrap_cell(text, font, font_size, w)]
             wrapped.append(lines)
             max_lines = max(max_lines, len(lines))
         h = max(min_h, self._text_block_h(max_lines, font_size, pad))
@@ -199,13 +306,13 @@ class Page:
         x = self.ml
         self.set_stroke(GRID)
         self.c.setLineWidth(0.7)
-        for (_text, w, font, bg, fg), lines in zip(cells, wrapped):
+        for (_text, w, font, bg, _fg), lines in zip(cells, wrapped):
             if bg:
                 self.set_fill(bg)
                 self.c.rect(x, self.y, w, h, stroke=0, fill=1)
             self.set_stroke(GRID)
             self.c.rect(x, self.y, w, h, stroke=1, fill=0)
-            self._draw_lines(x, self.y, w, h, lines, font, font_size, fg, align="left", valign="top", pad=pad)
+            self._draw_rich_lines(x, self.y, w, h, lines, font, font_size, align="left", valign="top", pad=pad)
             x += w
 
     def draw_item_group(
@@ -230,12 +337,12 @@ class Page:
             note_fg = NOTE_RED if any(ch in note_text for ch in ("X", "주의", "★★★")) else INK
 
         kind_wraps: list[tuple[str, list[str], tuple | None, tuple]] = []
-        rec_wraps: list[list[str]] = []
+        rec_wraps: list[list[list[tuple[str, tuple[float, float, float]]]]] = []
         need_hs: list[float] = []
         for kind, rec, _note in variants:
             label, kbg, kfg = self.kind_cell(kind)
             k_lines = self._wrap_cell(label, "Bold", font_size, kind_w)
-            r_lines = self._wrap_cell(rec, "Body", font_size, rec_w)
+            r_lines = self._wrap_recipe(rec, "Body", font_size, rec_w)
             kind_wraps.append((label, k_lines, kbg, kfg))
             rec_wraps.append(r_lines)
             need_hs.append(
@@ -267,7 +374,7 @@ class Page:
                 self.set_fill(kbg)
                 self.c.rect(x + item_w, cy - sub_h, kind_w, sub_h, stroke=0, fill=1)
             self._draw_lines(x + item_w, cy - sub_h, kind_w, sub_h, k_lines, "Bold", font_size, kfg, align="center")
-            self._draw_lines(x + item_w + kind_w, cy - sub_h, rec_w, sub_h, r_lines, "Body", font_size, INK, align="left")
+            self._draw_rich_lines(x + item_w + kind_w, cy - sub_h, rec_w, sub_h, r_lines, "Body", font_size, align="left")
             if i < n - 1:
                 self.set_stroke(GRID)
                 self.c.line(x + item_w, cy - sub_h, x + item_w + kind_w + rec_w, cy - sub_h)
@@ -303,11 +410,15 @@ class Page:
         self.set_stroke(GRID)
         self.c.rect(self.ml, self.y, self.content_w, h, stroke=1, fill=0)
         self.c.line(self.ml + 38 * mm, self.y, self.ml + 38 * mm, self.y + h)
-        self.set_fill(INK)
         self.c.setFont("Body", 7.1)
         ty = self.y + h - 9.4 * mm
         for line in lines:
-            self.c.drawString(self.ml + 40 * mm, ty, line)
+            xx = self.ml + 40 * mm
+            for frag, color in colorize_recipe(line):
+                self.set_fill(color)
+                self.c.setFont("Body", 7.1)
+                self.c.drawString(xx, ty, frag)
+                xx += pdfmetrics.stringWidth(frag, "Body", 7.1)
             ty -= 3.55 * mm
 
 
@@ -340,7 +451,8 @@ def page1_smoothie(path: Path) -> None:
                 (name, item_w, "Bold", None, INK),
                 (rec, rec_w, "Body", None, INK),
                 (note, note_w, "Body", None, NOTE_RED if "주의" in note or "3일" in note else INK),
-            ]
+            ],
+            colorize_idx=1,
         )
 
     p.section_bar("SMOOTHIE")
@@ -365,7 +477,8 @@ def page1_smoothie(path: Path) -> None:
     ]
     for name, rec, note in smoothies:
         p.draw_row(
-            [(name, item_w, "Bold", None, INK), (rec, rec_w, "Body", None, INK), (note, note_w, "Body", None, INK)]
+            [(name, item_w, "Bold", None, INK), (rec, rec_w, "Body", None, INK), (note, note_w, "Body", None, INK)],
+            colorize_idx=1,
         )
 
     p.section_bar("FRAPPE")
@@ -378,27 +491,27 @@ def page1_smoothie(path: Path) -> None:
         ),
         (
             "자바칩프라페",
-            "블렌딩[우유 190g + 자바칩파우더 3S(42g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
+            "블렌딩[우유 170g + 자바칩파우더 3S(42g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
             "",
         ),
         (
             "쿠앤크프라페",
-            "블렌딩[우유 190g + 쿠앤크파우더 4S(48g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
+            "블렌딩[우유 170g + 쿠앤크파우더 4S(48g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
             "",
         ),
         (
             "제주산말차프라페",
-            "블렌딩[우유 190g + 녹차파우더 3S(45g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
+            "블렌딩[우유 170g + 녹차파우더 3S(45g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
             "",
         ),
         (
             "바닐라프라페",
-            "블렌딩[우유 190g + 바닐라파우더 3S(42g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
+            "블렌딩[우유 170g + 바닐라파우더 3S(42g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
             "",
         ),
         (
             "민트초코프라페",
-            "블렌딩[우유 190g + 민트초코파우더 3S(45g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
+            "블렌딩[우유 170g + 민트초코파우더 3S(45g) + 쉐이크파우더 1S(12g) + 얼음 가득(300g)] + 휘핑크림",
             "",
         ),
         (
@@ -408,7 +521,7 @@ def page1_smoothie(path: Path) -> None:
         ),
         (
             "코코넛커피스무디",
-            "블렌딩[우유 190g + 코코넛파우더 4S(40g) + 얼음 가득(300g)] + 에스프레소 2샷(사이드)",
+            "블렌딩[우유 170g + 코코넛파우더 4S(40g) + 얼음 가득(300g)] + 에스프레소 2샷(사이드)",
             "",
         ),
         ("쉑쉑 밀크쉐이크", "블렌딩[우유 160g + 쉐이크파우더 5S(60g) + 얼음 가득(300g)]", ""),
@@ -419,7 +532,8 @@ def page1_smoothie(path: Path) -> None:
                 (name, item_w, "Bold", None, INK),
                 (rec, rec_w, "Body", None, INK),
                 (note, note_w, "Body", None, NOTE_RED if "★★★" in note else INK),
-            ]
+            ],
+            colorize_idx=1,
         )
 
     p.tip_box(
@@ -493,6 +607,7 @@ def page2_tea_juice(path: Path) -> None:
             ],
             font_size=7.0,
             min_h=6.0 * mm,
+            colorize_idx=1,
         )
 
     p.tip_box(
